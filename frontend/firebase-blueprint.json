@@ -1,0 +1,26 @@
+{
+  "entities": {
+    "UserProgress": {
+      "title": "UserProgress",
+      "description": "Stores user's career readiness progress",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "selectedRole": { "type": "string" },
+        "selectedSkills": { "type": "array", "items": { "type": "string" } },
+        "quizAnswers": { "type": "object" },
+        "readinessScore": { "type": "number" },
+        "careerFitScore": { "type": "number" },
+        "industryRelevanceScore": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId"]
+    }
+  },
+  "firestore": {
+    "/userProgress/{userId}": {
+      "schema": "UserProgress",
+      "description": "Individual user progress documents"
+    }
+  }
+}

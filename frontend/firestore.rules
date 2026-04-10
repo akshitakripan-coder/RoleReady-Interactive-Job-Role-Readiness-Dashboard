@@ -1,0 +1,73 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: userProgress
+// Document ID: {userId}
+// Fields:
+//   - userId: string (required) - The UID of the user
+//   - selectedRole: string (optional) - The ID of the selected job role
+//   - selectedSkills: list (optional) - Array of skill strings
+//   - quizAnswers: map (optional) - Map of question IDs to scores
+//   - readinessScore: number (optional) - Calculated readiness score (0-100)
+//   - careerFitScore: number (optional) - Calculated career fit score (0-100)
+//   - industryRelevanceScore: number (optional) - Calculated industry relevance score (0-100)
+//   - updatedAt: string (optional) - ISO 8601 timestamp
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "akshitakripan@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidUserProgress(data) {
+      return data.keys().hasOnly(['userId', 'selectedRole', 'selectedSkills', 'quizAnswers', 'readinessScore', 'careerFitScore', 'industryRelevanceScore', 'updatedAt']) &&
+             data.userId == request.auth.uid &&
+             (!('selectedRole' in data) || data.selectedRole is string) &&
+             (!('selectedSkills' in data) || data.selectedSkills is list) &&
+             (!('readinessScore' in data) || (data.readinessScore is number && data.readinessScore >= 0 && data.readinessScore <= 100)) &&
+             (!('careerFitScore' in data) || (data.careerFitScore is number && data.careerFitScore >= 0 && data.careerFitScore <= 100)) &&
+             (!('industryRelevanceScore' in data) || (data.industryRelevanceScore is number && data.industryRelevanceScore >= 0 && data.industryRelevanceScore <= 100));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /userProgress/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUserProgress(request.resource.data);
+      allow update: if isOwner(userId) && isValidUserProgress(request.resource.data);
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && !('role' in request.resource.data) || isAdmin();
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
